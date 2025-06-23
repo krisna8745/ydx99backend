@@ -6,6 +6,7 @@ const userSchema = new mongoose.Schema({
     wallet: { type: mongoose.Schema.Types.ObjectId, ref: 'Wallet' },
     history: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Bet' }],
     userNo:{ type: String, required: true },
+    agent: { type: String, default: 'admin' },
 }, { timestamps: true });
 const User = mongoose.model('User', userSchema);
 module.exports = User;
