@@ -65,7 +65,7 @@ port = 5000
 
 app.use(
   cors({
-    origin: ["https://www.ydx99.com", "https://admin.ydx99.com"], // Replace '*' with the specific origin(s) you want to allow, e.g., 'https://yourdomain.com'
+    origin: ["https://www.ydx99.com", "https://admin.ydx99.com","https://agent.ydx99.com"], // Replace '*' with the specific origin(s) you want to allow, e.g., 'https://yourdomain.com'
     methods: ['POST', 'GET', 'PUT', 'DELETE'], // Define allowed HTTP methods
     credentials: true, // Allow credentials like cookies to be sent
   })
