@@ -5,6 +5,101 @@ const Bet = require('../models/cricketMarketModel');
 const User_wallet = require('../models/Wallet');
 
 
+// const createSessionResult = async (req, res) => {
+//     try {
+//         const { result, runs, matchName, noRuns, yesRuns, match } = req.body;
+//         console.log(req.body);
+
+//         // Fetch bet data for the match
+//         const betData = await Bet.find({ matchName: match, matbet: matchName ,result:"Pending"});
+//         const betDataCancel = await Bet.find({ matchName: match, matbet: matchName ,result:"cancel"});
+//         const canceltype2=await Bet.find({ matchName: match, matbet: matchName ,result:"canceltype2"});
+//         console.log("cancel canceltype2",betDataCancel);
+
+//         for(let bet3 of canceltype2){
+//             const userWallet = await User_wallet.findOne({ user: bet3.userId });
+//             if (!userWallet) {
+//                 console.error(`Wallet not found for user: ${bet3.user}`);
+//                 continue;
+//               }
+//               if ( (parseInt(runs) > parseInt(bet3.prevRuns) && parseInt(runs) < (parseInt(bet3.noRuns) + parseInt(bet3.yesRuns))) || (parseInt(runs) > (parseInt(bet3.noRuns) + parseInt(bet3.yesRuns)) && parseInt(runs) < parseInt(bet3.prevRuns))) {
+//                 userWallet.balance+= Math.abs(Number(bet3.profitA));
+//                 bet3.result = "Complete";
+//                 await userWallet.save();
+//                 await bet3.save();
+//               }
+              
+           
+//               bet3.result = "Complete";
+//               await bet3.save();
+//         }
+
+//         for(let bet2 of betDataCancel){
+//             const userWallet = await User_wallet.findOne({ user: bet2.userId });
+//             console.log("cancel wallet",userWallet);
+//             if (!userWallet) {
+//                 console.error(`Wallet not found for user: ${bet2.user}`);
+//                 continue;
+//               }
+
+//               userWallet.sessionexposure-= Math.abs(Number(bet2.exposure));
+//               bet2.result = "Complete";
+//               await userWallet.save();
+//               await bet2.save();
+//         }
+
+//         let userWalletUpdates = {}; // To track each user's wallet updates
+
+//         for (let bet of betData) {
+//             let updatedStatus = "loss"; // Default to loss
+//             // Determine win/loss based on runs
+//             if (bet.mode === "no" && parseInt(runs) < parseInt(bet.noRuns)) {
+//                 updatedStatus = "win";
+//             } else if (bet.mode === "yes" && parseInt(runs) >= parseInt(bet.yesRuns)) {
+//                 updatedStatus = "win";
+//             }
+//             // Update the bet result
+//             bet.result = updatedStatus;
+//             bet.winningRuns = runs;
+//             await bet.save();
+
+//             // Ensure exposure and profit values are numbers
+//             const betExposure = Math.abs(bet.exposure) || 0;
+//             const betProfit = Math.abs(bet.profitA) || 0;
+//             // console.log(betExposure, betProfit, "betProft")
+//             // Accumulate wallet updates
+//             if (!userWalletUpdates[bet.userId]) {
+//                 userWalletUpdates[bet.userId] = { balanceChange: 0, exposureChange: 0 };
+//             }
+//             if (updatedStatus === "win") {
+//                 console.log(updatedStatus, "yes");
+//                 userWalletUpdates[bet.userId].balanceChange += (betProfit + betExposure);
+//                 userWalletUpdates[bet.userId].exposureChange -= betExposure; // Only subtract the specific bet's exposure
+//             } else {
+//                 console.log(updatedStatus, "no");
+//                 userWalletUpdates[bet.userId].exposureChange -= betExposure; // Still reset only this bet's exposure
+//             }
+//              bet.result = "Complete";
+//         }
+//         // Apply accumulated wallet updates
+//         for (let userId in userWalletUpdates) {
+//             const userWallet = await User_wallet.findOne({ user: userId });
+//             if (userWallet) {
+//                 userWallet.balance += userWalletUpdates[userId].balanceChange;
+//                 userWallet.sessionexposure += userWalletUpdates[userId].exposureChange; // Only adjust exposure for this bet
+//                 await userWallet.save();
+//             }
+//         }
+//         // Save session result
+//         const sessionResult = new SessionResult({ runs });
+//         await sessionResult.save();
+//         res.status(201).json({ success: true, data: sessionResult });
+//     } catch (error) {
+//         console.error(error);
+//         res.status(500).json({ success: false, message: "Server Error", error: error.message });
+//     }
+// };
+
 const createSessionResult = async (req, res) => {
     try {
         const { result, runs, matchName, noRuns, yesRuns, match } = req.body;
@@ -17,21 +112,63 @@ const createSessionResult = async (req, res) => {
         console.log("cancel canceltype2",betDataCancel);
 
         for(let bet3 of canceltype2){
+            
+            console.log("prev",bet3.prevRuns,"noruns",bet3.noRuns,"yesruns",bet3.yesRuns);
             const userWallet = await User_wallet.findOne({ user: bet3.userId });
             if (!userWallet) {
                 console.error(`Wallet not found for user: ${bet3.user}`);
                 continue;
               }
-              if ( (parseInt(runs) > parseInt(bet3.prevRuns) && parseInt(runs) < (parseInt(bet3.noRuns) + parseInt(bet3.yesRuns))) || (parseInt(runs) > (parseInt(bet3.noRuns) + parseInt(bet3.yesRuns)) && parseInt(runs) < parseInt(bet3.prevRuns))) {
-                userWallet.balance+= Math.abs(Number(bet3.profitA));
-                bet3.result = "Complete";
+
+              const prevRuns = parseInt(bet3.prevRuns);
+              const yesRuns = bet3.yesRuns !== undefined ? parseInt(bet3.yesRuns) : undefined;
+              const noRuns = bet3.noRuns !== undefined ? parseInt(bet3.noRuns) : undefined;
+
+              let isBetween = false;
+
+               if (yesRuns !== undefined && noRuns === undefined) {
+                       // Include yesRuns, exclude prevRuns
+                    isBetween = runs >= yesRuns && runs < prevRuns;
+                  } else if (noRuns !== undefined && yesRuns === undefined) {
+                     // Exclude noRuns, include prevRuns
+                     isBetween = runs > noRuns && runs <= prevRuns;
+                }
+
+                 let availableRun;
+                 let presenttype;
+
+               if (bet3.yesRuns !== undefined) {
+                  availableRun = parseInt(bet3.yesRuns);
+                  presenttype = "yesRuns";
+                } else if (bet3.noRuns !== undefined) {
+                     availableRun = parseInt(bet3.noRuns);
+                     presenttype = "noRuns"; 
+                    }
+
+
+              if ( isBetween) {
+                userWallet.balance+= (Math.abs(Number(bet3.profitB))+Math.abs(Number(bet3.exposure)));
+                userWallet.sessionexposure-=Math.abs(Number(bet3.exposure));
+                bet3.result = "win";
+                bet3.winningRuns=runs;
+                await userWallet.save();
+                await bet3.save();
+                console.log("inside of cnaceltype2")
+              }else if(presenttype==="yesRuns" && prevRuns<=runs||presenttype==="noRuns" && prevRuns>=runs){
+                 userWallet.balance+= (Math.abs(Number(bet3.profitA))+Math.abs(Number(bet3.exposure)));
+                userWallet.sessionexposure-=Math.abs(Number(bet3.exposure));
+                bet3.result = "win";
+                bet3.winningRuns=runs;
+                await userWallet.save();
+                await bet3.save();
+              }else{
+                userWallet.sessionexposure-=Math.abs(Number(bet3.exposure));
+                bet3.result = "loss";
+                bet3.winningRuns=runs;
                 await userWallet.save();
                 await bet3.save();
               }
               
-           
-              bet3.result = "Complete";
-              await bet3.save();
         }
 
         for(let bet2 of betDataCancel){
