@@ -457,6 +457,7 @@ const getUniqueMatchesAndLabels = async (req, res) => {
 };
 
 const ResultDeclaration = require('../models/resultDeclartion');
+const agentLedgeModel=require('../models/agentLedgeModel');
 const submitNewDeclaration = async (req, res) => {
   console.log(req.body, "okkkk laggai khai")
   const { match, winner, resultType } = req.body;
@@ -470,24 +471,28 @@ const submitNewDeclaration = async (req, res) => {
 
     for (const bet of bets) {
       const userWallet = await User_Wallet.findOne({ user: bet.user });
-
-      if (!userWallet) {
+        const user = await User.findById(bet.user);
+      if (!userWallet||!user) {
         console.error(`Wallet not found for user: ${bet.user}`);
         continue;
       }
       const profitA = bet.teamIndex === 0 ? bet.teamAProfit : bet.teamBProfit
       const profitB = bet.teamIndex === 1 ? bet.teamAProfit : bet.teamBProfit
       console.log(profitA, profitB)
+      let credit = 0;
+      let debit = 0;
       // Check conditions and update wallet
       if ((bet.match === match && bet.label === winner && resultType == "Winner")) {
         // User wins
         if (profitA > 0&&profitB<0) {
           userWallet.balance += Number(profitA) + Number(userWallet.exposureBalance);
           userWallet.exposureBalance -= Math.abs(Number(profitB));
+           debit = Math.abs(profitA);
         }
         else {
           // userWallet.balance += Number(teamBProfit) + Number(userWallet.exposureBalance); 
           userWallet.exposureBalance -= Math.abs(Number(profitA));
+          credit =Math.abs(Number(profitA));
         }
         // userWallet.balance += bet.teamAProfit;
       } else if ((bet.match === match && bet.label === winner && resultType == "loss")) {
@@ -495,13 +500,29 @@ const submitNewDeclaration = async (req, res) => {
         if (profitB > 0&&profitA<0) {
           userWallet.balance += Number(profitB) + Number(userWallet.exposureBalance);
           userWallet.exposureBalance -= Math.abs(Number(profitA));
+          debit = Math.abs(profitB);
         } else {
           userWallet.exposureBalance -= Math.abs(Number(profitB));
+           credit =Math.abs(Number(profitB));
         }
       } else if ((bet.match === match && bet.label === winner && resultType == "Draw")) {
         userWallet.balance += Number(bet.exposure)
         userWallet.exposureBalance = 0;
       }
+
+     const agentEntry = new agentLedgeModel({
+          date: new Date(),
+          eventName: match,
+          client:user.userNo,
+          agentNo:user.agent,
+          credit,
+          debit,
+          type: 'cricket',
+          remark: `${winner} Win The Match`,
+        
+        });
+
+        await agentEntry.save();
       // Adjust exposure and mark bet as completed
       bet.teamAProfit=0;
       bet.teamBProfit=0;
