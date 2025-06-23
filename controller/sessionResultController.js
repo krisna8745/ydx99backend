@@ -4,7 +4,8 @@ const SessionResult = require('../models/sessionResultModel');
 const Bet = require('../models/cricketMarketModel');
 const User_wallet = require('../models/Wallet');
 
-
+const agentLedgeModel=require('../models/agentLedgeModel');
+const User = require('../models/UserSignUp');
 // const createSessionResult = async (req, res) => {
 //     try {
 //         const { result, runs, matchName, noRuns, yesRuns, match } = req.body;
@@ -188,6 +189,9 @@ const createSessionResult = async (req, res) => {
         let userWalletUpdates = {}; // To track each user's wallet updates
 
         for (let bet of betData) {
+            const user = await User.findById(bet.userId);
+            let credit = 0;
+            let debit = 0;
             let updatedStatus = "loss"; // Default to loss
             // Determine win/loss based on runs
             if (bet.mode === "no" && parseInt(runs) < parseInt(bet.noRuns)) {
@@ -212,11 +216,28 @@ const createSessionResult = async (req, res) => {
                 console.log(updatedStatus, "yes");
                 userWalletUpdates[bet.userId].balanceChange += (betProfit + betExposure);
                 userWalletUpdates[bet.userId].exposureChange -= betExposure; // Only subtract the specific bet's exposure
+                debit = Math.abs(betProfit);
             } else {
                 console.log(updatedStatus, "no");
                 userWalletUpdates[bet.userId].exposureChange -= betExposure; // Still reset only this bet's exposure
+                credit =Math.abs(Number(betExposure));
             }
-             bet.result = "Complete";
+             bet.result = "Complete";       
+             const agentEntry = new agentLedgeModel({
+                date: new Date(),
+                eventName: match,
+                client:user.userNo,
+                agentNo:user.agent,
+                credit,
+                debit,
+                type: 'cricket',
+                remark: ``,
+                comType:"session"
+              
+              });
+      
+              await agentEntry.save();
+
         }
         // Apply accumulated wallet updates
         for (let userId in userWalletUpdates) {
