@@ -42,7 +42,7 @@ const sessionResultRoutes = require("./Routes/sessionResultRoutes.js")
 const pageRoutes = require("./Routes/pagesRoute.js");
 const deletedataRoute = require("./Routes/deletedataRoute.js")
 const adminRoutes = require("./Routes/adminRoutes.js")
-
+const agentRoute = require("./Routes/agentRoute.js");
 const io = socketIo(server, {
   cors: {
     origin: "*",
@@ -551,6 +551,7 @@ app.use("/", sessionResultRoutes);
 app.use('/api', pageRoutes);
 app.use('/api',deletedataRoute);
 app.use('/api/admin', adminRoutes);
+app.use('/api',agentRoute);
 // Add endpoint for fetching matches by sport ID
 // app.get('/api/matches/:sportId', (req, res) => {
 //   const { sportId } = req.params;
